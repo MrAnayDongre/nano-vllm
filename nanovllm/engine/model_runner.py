@@ -161,6 +161,7 @@ class ModelRunner:
         set_context(True, cu_seqlens_q, cu_seqlens_k, max_seqlen_q, max_seqlen_k, slot_mapping, None, block_tables)
         return input_ids, positions
 
+    @torch.inference_mode()
     def prepare_decode(self, seqs: list[Sequence]):
         st = getattr(self, "decode_staging", None)
         if (not self.enforce_eager) and hasattr(self, "graphs") and len(seqs) <= 512 and (st is not None):
@@ -173,8 +174,8 @@ class ModelRunner:
             st["input_ids"][:bucket].zero_()
             st["positions"][:bucket].zero_()
             st["slot_mapping"][:bucket].fill_(-1)
-            st["context_lens"][:bucket].fill_(1)
-            st["block_tables"][:bucket].fill_(-1)
+            st["context_lens"][:bucket].zero_()
+            st["block_tables"][:bucket].zero_()
 
             for i, seq in enumerate(seqs):
                 st["input_ids"][i] = seq.last_token
@@ -239,10 +240,10 @@ class ModelRunner:
                 graph_vars["slot_mapping"][:bucket].fill_(-1)
                 graph_vars["slot_mapping"][:bs].copy_(context.slot_mapping, non_blocking=True)
 
-                graph_vars["context_lens"][:bucket].fill_(1)
+                graph_vars["context_lens"][:bucket].zero_()
                 graph_vars["context_lens"][:bs].copy_(context.context_lens, non_blocking=True)
 
-                graph_vars["block_tables"][:bucket].fill_(-1)
+                graph_vars["block_tables"][:bucket].zero_()
                 graph_vars["block_tables"][:bs, :context.block_tables.size(1)].copy_(context.block_tables, non_blocking=True)
 
             graph.replay()
